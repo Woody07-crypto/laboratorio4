@@ -1,10 +1,37 @@
-resource "aws_dynamodb_table" "clientes" {
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "4.67.0" 
+    }
+  }
+}
+data "archive_file" "zip_transferencia" {
+  type        = "zip"
+  source_file = "../lambdas/realizar_transferencia/main.py"
+  output_path = "../lambdas/realizar_transferencia/lambda.zip"
+}
 
+data "archive_file" "zip_crear_cliente" {
+  type        = "zip"
+  source_file = "../lambdas/crear_cliente/main.py"
+  output_path = "../lambdas/crear_cliente/lambda.zip"
+}
+
+resource "aws_lambda_function" "realizar_transferencia" {
+  function_name = "realizar_transferencia"
+  # Cambiado a 3.9 para compatibilidad
+  runtime       = "python3.9"
+  handler       = "main.lambda_handler"
+  filename      = "../lambdas/realizar_transferencia/lambda.zip"
+  source_code_hash = filebase64sha256("../lambdas/realizar_transferencia/lambda.zip")
+  role          = aws_iam_role.lambda_role.arn
+}
+
+resource "aws_dynamodb_table" "clientes" {
   name         = "clientes"
   billing_mode = "PAY_PER_REQUEST"
-
-  hash_key = "id"
-
+  hash_key     = "id"
   attribute {
     name = "id"
     type = "S"
@@ -12,12 +39,9 @@ resource "aws_dynamodb_table" "clientes" {
 }
 
 resource "aws_dynamodb_table" "cuentas" {
-
   name         = "cuentas"
   billing_mode = "PAY_PER_REQUEST"
-
-  hash_key = "cuenta_id"
-
+  hash_key     = "cuenta_id"
   attribute {
     name = "cuenta_id"
     type = "S"
@@ -25,12 +49,9 @@ resource "aws_dynamodb_table" "cuentas" {
 }
 
 resource "aws_dynamodb_table" "transferencias" {
-
   name         = "transferencias"
   billing_mode = "PAY_PER_REQUEST"
-
-  hash_key = "transferencia_id"
-
+  hash_key     = "transferencia_id"
   attribute {
     name = "transferencia_id"
     type = "S"
@@ -39,7 +60,6 @@ resource "aws_dynamodb_table" "transferencias" {
 
 resource "aws_iam_role" "lambda_role" {
   name = "lambda_role"
-
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
@@ -60,7 +80,6 @@ resource "aws_iam_role_policy_attachment" "lambda_logs" {
 resource "aws_iam_role_policy" "dynamodb_policy" {
   name = "dynamodb_policy"
   role = aws_iam_role.lambda_role.id
-
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
@@ -74,21 +93,13 @@ resource "aws_iam_role_policy" "dynamodb_policy" {
 }
 
 resource "aws_lambda_function" "crear_cliente" {
-  function_name    = "crear_cliente"
-  runtime          = "python3.11"
-  handler          = "main.lambda_handler"
-  filename         = "../lambdas/crear_cliente/lambda.zip"
+  function_name = "crear_cliente"
+  # Cambiado a 3.9 para compatibilidad
+  runtime       = "python3.9"
+  handler       = "main.lambda_handler"
+  filename      = "../lambdas/crear_cliente/lambda.zip"
   source_code_hash = filebase64sha256("../lambdas/crear_cliente/lambda.zip")
-  role             = aws_iam_role.lambda_role.arn
-}
-
-resource "aws_lambda_function" "realizar_transferencia" {
-  function_name    = "realizar_transferencia"
-  runtime          = "python3.11"
-  handler          = "main.lambda_handler"
-  filename         = "../lambdas/realizar_transferencia/lambda.zip"
-  source_code_hash = filebase64sha256("../lambdas/realizar_transferencia/lambda.zip")
-  role             = aws_iam_role.lambda_role.arn
+  role          = aws_iam_role.lambda_role.arn
 }
 
 resource "aws_api_gateway_rest_api" "api" {
